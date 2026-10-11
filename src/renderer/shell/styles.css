@@ -1,0 +1,5 @@
+:root { color-scheme: dark; --bg: #111b21; --text: #e9edef; }
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.topbar { height: 44px; display: flex; align-items: center; padding: 0 12px 0 84px; -webkit-app-region: drag; }
