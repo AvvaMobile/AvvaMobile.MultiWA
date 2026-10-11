@@ -2,6 +2,7 @@ import type { WebContentsView } from 'electron';
 import { WHATSAPP_HOME_URL } from '../security/origins';
 import { createAccountView, redactUrlsIn } from '../security/remoteContent';
 import { initialRuntimeState, reduceRuntime, type RuntimeEvent, type RuntimeState } from './runtimeState';
+import { WHATSAPP_LAYOUT_CSS } from './whatsappLayoutCss';
 
 /** Longest wait for Chromium to release a closed page's storage before the caller goes on (partition removal). */
 const DISPOSE_GRACE_MS = 3_000;
@@ -36,9 +37,14 @@ export class AccountRuntime {
     });
     this.view.setBackgroundColor('#111b21');
     const wc = this.view.webContents;
-    wc.on('did-start-loading', () => this.dispatch({ type: 'load-start' }));
+    // Only a real main-frame navigation is a load. did-start-loading also fires for iframes inside WhatsApp Web,
+    // which may never finish, and would pin the tab in the loading state.
+    wc.on('did-start-navigation', (_e, details) => {
+      if (details.isMainFrame && !details.isSameDocument) this.dispatch({ type: 'load-start' });
+    });
     wc.on('did-finish-load', () => this.dispatch({ type: 'load-finish' }));
     wc.on('did-stop-loading', () => this.dispatch({ type: 'load-stop' }));
+    wc.on('dom-ready', () => void wc.insertCSS(WHATSAPP_LAYOUT_CSS).catch(() => undefined));
     wc.on('did-fail-load', (_e, code, description, _url, isMainFrame) => {
       if (isMainFrame) this.dispatch({ type: 'load-fail', code, description });
     });

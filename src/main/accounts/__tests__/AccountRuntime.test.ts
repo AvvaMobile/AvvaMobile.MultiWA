@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 class FakeWebContents extends EventEmitter {
   loadURL = vi.fn(() => Promise.resolve());
   focus = vi.fn();
+  insertCSS = vi.fn(() => Promise.resolve('key'));
   close = vi.fn(() => { setTimeout(() => { this.destroyed = true; this.emit('destroyed'); }, 50); });
   destroyed = false;
   isDestroyed = () => this.destroyed;
@@ -35,21 +36,35 @@ describe('AccountRuntime', () => {
     const { rt, wc, deps } = setup();
     rt.load();
     expect(wc.loadURL).toHaveBeenCalledWith('https://web.whatsapp.com/');
-    wc.emit('did-start-loading');
+    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     wc.emit('did-finish-load');
     wc.emit('page-title-updated', {}, '(2) WhatsApp');
     expect(rt.snapshot()).toEqual({ status: 'ready', error: null, unread: 2 });
     expect(deps.onChange).toHaveBeenCalledWith('acc1');
   });
-  it('a sub-frame load that only reports did-stop-loading leaves the account ready, not stuck loading', () => {
+  it('sub-frame loads and in-page navigations never put a ready account back into loading', () => {
     const { rt, wc } = setup();
     rt.load();
-    wc.emit('did-start-loading');
+    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     wc.emit('did-finish-load');
-    wc.emit('did-start-loading'); // iframe inside WhatsApp Web: no did-finish-load follows
+    wc.emit('did-start-loading'); // an iframe inside WhatsApp Web (may never report did-finish-load / did-stop-loading)
+    wc.emit('did-start-navigation', {}, { url: 'https://x.whatsapp.net/', isMainFrame: false, isSameDocument: false });
+    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/#chat', isMainFrame: true, isSameDocument: true });
+    expect(rt.snapshot().status).toBe('ready');
+    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     expect(rt.snapshot().status).toBe('loading');
     wc.emit('did-stop-loading');
     expect(rt.snapshot().status).toBe('ready');
+  });
+  it('inserts the layout stylesheet once the DOM is ready (a narrower chat list, no 748px floor), never script', () => {
+    const { rt, wc } = setup();
+    rt.load();
+    wc.emit('dom-ready');
+    expect(wc.insertCSS).toHaveBeenCalledTimes(1);
+    const css = (wc.insertCSS.mock.calls[0] as unknown as [string])[0];
+    expect(css).toContain('#side');
+    expect(css).toContain('min-width: 0');
+    expect('executeJavaScript' in wc).toBe(false);
   });
   it('a main-frame load failure goes offline; subframe failures are ignored', () => {
     const { rt, wc } = setup();
