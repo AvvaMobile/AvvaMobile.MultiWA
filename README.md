@@ -39,6 +39,10 @@ Full requirements: [docs/SECURITY.md](docs/SECURITY.md). Architecture: [docs/ARC
 
 Close its tab (✕) and confirm. The session is wiped from this computer, including its storage folder. Nothing on your phone changes; unlink the device there if you want to.
 
+## Support the project
+
+MultiWA is free and open source. If it saves you time, you can [buy me a coffee](https://buymeacoffee.com/muratyilmaz).
+
 ## Development
 
 ```sh

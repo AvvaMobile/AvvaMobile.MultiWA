@@ -38,3 +38,6 @@ export type ShellCommand = 'fullscreen-enter' | 'fullscreen-leave' | 'rename-act
 
 /** Fixed IPC push channel names for the shell preload (no generic channel access). */
 export const SHELL_CHANNELS = { state: 'shell:state', toast: 'shell:toast', command: 'shell:command' } as const;
+
+/** Support link (Help menu). Opened by main only; the renderer never passes a URL. */
+export const BUY_ME_A_COFFEE_URL = 'https://buymeacoffee.com/muratyilmaz';

@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { colorForNew, nextAccountName, validateAccountName, type AccountRecord } from '../../domain/accounts/account';
 import { isValidSplitRatio } from '../../domain/layout/splitPane';
 import { TOPBAR_HEIGHT, workAreaFor } from '../../shared/shellLayout';
-import { SHELL_CHANNELS, type AccountView, type ShellCommand, type ShellState, type ToastMessage } from '../../shared/state';
+import { BUY_ME_A_COFFEE_URL, SHELL_CHANNELS, type AccountView, type ShellCommand, type ShellState, type ToastMessage } from '../../shared/state';
 import { AccountRuntime } from '../accounts/AccountRuntime';
 import { createDiagnosticsLog } from '../diagnostics/diagnosticsLog';
 import { DownloadManager } from '../downloads/DownloadManager';
@@ -644,6 +644,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
           ...(isMac ? [] : [updatesItem, { type: 'separator' } as MenuItemConstructorOptions]),
           { label: 'Open Logs Folder', click: () => shell.showItemInFolder(diag.file) },
           { label: 'MultiWA on GitHub', click: () => void shell.openExternal('https://github.com/AvvaMobile/AvvaMobile.MultiWA') },
+          { label: 'Buy Me a Coffee', click: () => void shell.openExternal(BUY_ME_A_COFFEE_URL) },
         ],
       },
     ];
