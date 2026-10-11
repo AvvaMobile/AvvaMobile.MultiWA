@@ -50,7 +50,10 @@ export function App({ api }: { api: MultiWAApi }) {
         if (c === 'fullscreen-enter') setFullscreen(true);
         if (c === 'fullscreen-leave') setFullscreen(false);
         if (c === 'rename-active') setRenamingId((cur) => cur ?? activeIdRef.current);
-        if (typeof c === 'object' && c.type === 'rename') setRenamingId(c.id);
+        if (typeof c === 'object' && c.type === 'rename') {
+          void api.focusShell();
+          setRenamingId(c.id);
+        }
       }),
     ];
     void api.getState().then((s) => {
@@ -124,7 +127,11 @@ export function App({ api }: { api: MultiWAApi }) {
         onNew={() => void api.addAccount()}
         onClose={(id) => void api.removeAccount(id)}
         renamingId={renamingId}
-        onRenameStart={setRenamingId}
+        onRenameStart={(id) => {
+          // The single click that precedes a double-click focused the account view; take the keyboard back.
+          void api.focusShell();
+          setRenamingId(id);
+        }}
         onRename={(id, name) => {
           setRenamingId(null);
           void api.renameAccount(id, name).then((r) => {

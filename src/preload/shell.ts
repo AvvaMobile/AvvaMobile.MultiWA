@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('multiwa', {
   hideRightPane: () => ipcRenderer.invoke('split:hide'),
   setSplit: (ratio: number, commit: boolean) => ipcRenderer.send('layout:set-split', { ratio: Number(ratio), commit: commit === true }),
   revealDownload: (id: string) => ipcRenderer.invoke('download:reveal', str(id)),
+  focusShell: () => ipcRenderer.invoke('shell:focus'),
   onState: (cb: (s: unknown) => void) => subscribe(PUSH.state, cb),
   onToast: (cb: (t: unknown) => void) => subscribe(PUSH.toast, cb),
   onCommand: (cb: (c: unknown) => void) => subscribe(PUSH.command, cb),

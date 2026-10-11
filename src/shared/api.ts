@@ -20,6 +20,8 @@ export interface MultiWAApi {
   /** Live divider drag (commit=false, at most once per frame) and drag end (commit=true). */
   setSplit(ratio: number, commit: boolean): void;
   revealDownload(downloadId: string): Promise<void>;
+  /** Gives the shell page keyboard focus (the active account view normally holds it); used when an inline editor opens. */
+  focusShell(): Promise<void>;
   onState(cb: (s: ShellState) => void): () => void;
   onToast(cb: (t: ToastMessage) => void): () => void;
   onCommand(cb: (c: ShellCommand) => void): () => void;

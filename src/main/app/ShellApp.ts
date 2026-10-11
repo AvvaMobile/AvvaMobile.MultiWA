@@ -506,6 +506,10 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     if (known(id)) showInRightPane(sw, id);
   });
   handleIn('split:hide', (sw) => hideRightPane(sw));
+  // An inline editor (tab rename) needs the keyboard, which selectAccount handed to the account view.
+  handleIn('shell:focus', (sw) => {
+    if (!sw.win.isDestroyed()) sw.win.webContents.focus();
+  });
   handleIn('download:reveal', (_sw, id) => {
     if (isId(id)) downloads.reveal(id);
   });
@@ -521,7 +525,9 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
 
   const selectAndRename = (sw: ShellWindow, id: string) => {
     selectAccount(id);
-    sendCommand(windowOf.get(id) ?? sw, { type: 'rename', id });
+    const owner = windowOf.get(id) ?? sw;
+    if (!owner.win.isDestroyed()) owner.win.webContents.focus();
+    sendCommand(owner, { type: 'rename', id });
   };
 
   // ---------- Menu ----------

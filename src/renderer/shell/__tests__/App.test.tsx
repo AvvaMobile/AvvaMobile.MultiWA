@@ -24,7 +24,7 @@ function fakeApi() {
     platform: 'darwin',
     getState: vi.fn(() => Promise.resolve(state)),
     addAccount: vi.fn(), selectAccount: vi.fn(), renameAccount: vi.fn(() => Promise.resolve({ ok: true as const })), removeAccount: vi.fn(), reorderAccounts: vi.fn(),
-    accountContextMenu: vi.fn(), reloadAccount: vi.fn(), showInRightPane: vi.fn(), hideRightPane: vi.fn(), setSplit: vi.fn(), revealDownload: vi.fn(),
+    accountContextMenu: vi.fn(), reloadAccount: vi.fn(), showInRightPane: vi.fn(), hideRightPane: vi.fn(), setSplit: vi.fn(), revealDownload: vi.fn(), focusShell: vi.fn(() => Promise.resolve()),
     onState: (cb: (s: ShellState) => void) => { listeners.state.push(cb); return () => {}; },
     onToast: (cb: (t: ToastMessage) => void) => { listeners.toast.push(cb); return () => {}; },
     onCommand: (cb: (c: ShellCommand) => void) => { listeners.command.push(cb); return () => {}; },
@@ -54,6 +54,13 @@ describe('App', () => {
     act(() => listeners.toast[0]!({ id: 't1', accountId: 'a', kind: 'success', title: 'Saved photo.jpg', body: 'Click to show in folder', downloadId: 'd1' }));
     expect(host.querySelector('.topbar .toast')).not.toBeNull();
     expect(host.querySelector('.topbar .toast')?.textContent).toContain('Saved photo.jpg');
+  });
+  it('starting a rename by double-click asks main to give the shell keyboard focus (the native view holds it after a select)', async () => {
+    const { api } = await render();
+    const tab = host.querySelectorAll<HTMLElement>('.tab')[1]!;
+    act(() => tab.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+    expect(api.focusShell).toHaveBeenCalledTimes(1);
+    expect(tab.querySelector('.tab-rename')).not.toBeNull();
   });
   it('a rename command carrying an account id opens the rename input on that tab, not the active one', async () => {
     const { listeners } = await render();
