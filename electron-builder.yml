@@ -23,7 +23,7 @@ electronFuses:
 publish:
   provider: github
   owner: AvvaMobile
-  repo: MultiWA
+  repo: AvvaMobile.MultiWA
   releaseType: draft
 
 mac:

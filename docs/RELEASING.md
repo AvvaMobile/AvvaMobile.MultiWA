@@ -6,7 +6,7 @@ Everything is built and uploaded from a developer machine. There is no CI; never
 
 - macOS release machine with the Avva Mobile Developer ID Application certificate in the login keychain.
 - App Store Connect API key (`AuthKey_<KEY_ID>.p8`), its Key ID and Issuer ID (for notarization).
-- `gh` CLI signed in to an account with write access to `AvvaMobile/MultiWA`.
+- `gh` CLI signed in to an account with write access to `AvvaMobile/AvvaMobile.MultiWA`.
 - A Windows machine (or macOS with Rosetta for `makensis`) for the Windows installer.
 
 ## Steps

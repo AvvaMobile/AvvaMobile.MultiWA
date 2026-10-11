@@ -13,7 +13,7 @@ Several WhatsApp Web accounts on one computer, one per tab. macOS and Windows.
 
 ## Install
 
-Download from [Releases](https://github.com/AvvaMobile/MultiWA/releases): `MultiWA-<version>-arm64.dmg` / `-x64.dmg` (macOS, signed and notarized), `MultiWA-Setup-<version>.exe` (Windows, unsigned: SmartScreen → More info → Run anyway).
+Download from [Releases](https://github.com/AvvaMobile/AvvaMobile.MultiWA/releases): `MultiWA-<version>-arm64.dmg` / `-x64.dmg` (macOS, signed and notarized), `MultiWA-Setup-<version>.exe` (Windows, unsigned: SmartScreen → More info → Run anyway).
 
 ## Privacy and security
 

@@ -18,7 +18,7 @@ MultiWA will:
 
 MultiWA will not: reimplement any WhatsApp feature, read or store message content or credentials, give remote content any bridge to Node/Electron, scrape WhatsApp's DOM (the only page signal used is the window title), or use CI for builds and releases.
 
-UI language: English. Product name: **MultiWA**. App id: `com.avvamobile.multiwa`. Repository: `AvvaMobile/MultiWA` (public).
+UI language: English. Product name: **MultiWA**. App id: `com.avvamobile.multiwa`. Repository: `AvvaMobile/AvvaMobile.MultiWA` (public).
 
 ## 2. Concepts
 
@@ -147,7 +147,7 @@ Ported from Sidekick with the new identifiers:
 
 - `appId: com.avvamobile.multiwa`, `productName: MultiWA`, artifacts `MultiWA-<version>-<arch>.dmg` / `-mac.zip`, `MultiWA-Setup-<version>.exe`.
 - macOS: arm64 + x64, DMG + zip, hardened runtime, Developer ID from the release Mac's keychain, notarization via App Store Connect API key env vars. Windows: NSIS x64, per-user, unsigned (SmartScreen note in README).
-- Updates: `electron-updater` against GitHub Releases of `AvvaMobile/MultiWA` (`latest-mac.yml`, `latest.yml`). `MULTIWA_NO_UPDATES=1` disables.
+- Updates: `electron-updater` against GitHub Releases of `AvvaMobile/AvvaMobile.MultiWA` (`latest-mac.yml`, `latest.yml`). `MULTIWA_NO_UPDATES=1` disables.
 - **No CI.** No `.github/workflows`. Release procedure: bump version → `npm run dist:mac` / `dist:win` (Windows build on a Windows machine or Rosetta) → `gh release create vX.Y.Z` → upload artifacts and `latest*.yml` locally. `release-mac.sh` already does build + sign + notarize + upload; it is kept and pointed at the new repo.
 - Setup checklist and its dialog are not ported (no external tool dependencies).
 

@@ -637,7 +637,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
         submenu: [
           ...(isMac ? [] : [updatesItem, { type: 'separator' } as MenuItemConstructorOptions]),
           { label: 'Open Logs Folder', click: () => shell.showItemInFolder(diag.file) },
-          { label: 'MultiWA on GitHub', click: () => void shell.openExternal('https://github.com/AvvaMobile/MultiWA') },
+          { label: 'MultiWA on GitHub', click: () => void shell.openExternal('https://github.com/AvvaMobile/AvvaMobile.MultiWA') },
         ],
       },
     ];

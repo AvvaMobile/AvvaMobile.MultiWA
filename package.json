@@ -36,7 +36,7 @@
     "react-dom": "^19.3.0"
   },
   "author": "Avva Mobile",
-  "homepage": "https://github.com/AvvaMobile/MultiWA",
-  "repository": { "type": "git", "url": "https://github.com/AvvaMobile/MultiWA.git" },
+  "homepage": "https://github.com/AvvaMobile/AvvaMobile.MultiWA",
+  "repository": { "type": "git", "url": "https://github.com/AvvaMobile/AvvaMobile.MultiWA.git" },
   "license": "MIT"
 }
