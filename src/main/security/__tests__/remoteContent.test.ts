@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 // Electron is not available under vitest; the pure helpers are tested with the module mocked.
-vi.mock('electron', () => ({ session: {}, shell: {}, WebContentsView: class {} }));
+import { EventEmitter } from 'node:events';
+vi.mock('electron', () => ({ session: {}, shell: { openExternal: vi.fn(() => Promise.resolve()) }, WebContentsView: class {} }));
+import { shell } from 'electron';
 
-import { chromeLikeUserAgent, rateLimited, redactUrl, redactUrlsIn, remoteWebPreferences } from '../remoteContent';
+import { applyNavigationPolicy, chromeLikeUserAgent, rateLimited, redactUrl, redactUrlsIn, remoteWebPreferences, type NavigationLogEntry } from '../remoteContent';
 
 describe('chromeLikeUserAgent', () => {
   it('drops the Electron and app tokens, keeps Chrome', () => {
@@ -29,14 +31,63 @@ describe('redactUrl', () => {
 });
 
 describe('rateLimited', () => {
-  it('runs at most once per interval', () => {
+  it('allows a short burst per interval, then drops until the interval has passed', () => {
     let t = 0;
     const fn = vi.fn();
-    const limited = rateLimited(fn, 1000, () => t);
-    expect(limited('a')).toBe(true);
-    expect(limited('b')).toBe(false);
+    const limited = rateLimited(fn, 1000, () => t, 3);
+    expect([limited('a'), limited('b'), limited('c')]).toEqual([true, true, true]);
+    expect(limited('d')).toBe(false);
+    t = 999;
+    expect(limited('e')).toBe(false);
     t = 1000;
-    expect(limited('c')).toBe(true);
-    expect(fn.mock.calls.map((c) => c[0])).toEqual(['a', 'c']);
+    expect(limited('f')).toBe(true);
+    expect(fn.mock.calls.map((c) => c[0])).toEqual(['a', 'b', 'c', 'f']);
+  });
+});
+
+class FakeWebContents extends EventEmitter {
+  handler: ((d: { url: string }) => { action: string }) | null = null;
+  setWindowOpenHandler(h: (d: { url: string }) => { action: string }) { this.handler = h; }
+}
+
+describe('applyNavigationPolicy', () => {
+  const setup = () => {
+    const wc = new FakeWebContents();
+    const log: NavigationLogEntry[] = [];
+    applyNavigationPolicy(wc as never, (e) => log.push(e));
+    return { wc, log };
+  };
+  const nav = (url: string) => {
+    const e = { url, preventDefault: vi.fn() };
+    return e;
+  };
+  it('lets WhatsApp navigate and blocks everything else, opening safe links in the OS browser', () => {
+    const { wc, log } = setup();
+    vi.mocked(shell.openExternal).mockClear();
+    const ok = nav('https://web.whatsapp.com/');
+    wc.emit('will-navigate', ok);
+    expect(ok.preventDefault).not.toHaveBeenCalled();
+    const bad = nav('https://example.com/x?y=1');
+    wc.emit('will-navigate', bad);
+    expect(bad.preventDefault).toHaveBeenCalled();
+    expect(shell.openExternal).toHaveBeenCalledWith('https://example.com/x?y=1');
+    const file = nav('file:///etc/passwd');
+    wc.emit('will-navigate', file);
+    expect(file.preventDefault).toHaveBeenCalled();
+    expect(shell.openExternal).toHaveBeenCalledTimes(1);
+    expect(log.map((l) => l.kind)).toEqual(['navigate-allowed', 'navigate-blocked', 'navigate-blocked']);
+  });
+  it('denies every window.open in-app', () => {
+    const { wc, log } = setup();
+    expect(wc.handler!({ url: 'https://example.com/' })).toEqual({ action: 'deny' });
+    expect(wc.handler!({ url: 'javascript:alert(1)' })).toEqual({ action: 'deny' });
+    expect(log.map((l) => l.kind)).toEqual(['popup-external', 'popup-blocked']);
+  });
+  it('logs origins only: no paths (phone numbers, invite codes) or queries', () => {
+    const { wc, log } = setup();
+    wc.emit('will-navigate', nav('https://wa.me/905551234567?text=hi'));
+    wc.emit('will-navigate', nav('https://chat.whatsapp.com/AbCdEfGh123'));
+    wc.handler!({ url: 'https://example.com/secret/path' });
+    expect(log.map((l) => l.url)).toEqual(['https://wa.me', 'https://chat.whatsapp.com', 'https://example.com']);
   });
 });

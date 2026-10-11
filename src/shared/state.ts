@@ -34,7 +34,7 @@ export interface ToastMessage {
   downloadId?: string;
 }
 
-export type ShellCommand = 'fullscreen-enter' | 'fullscreen-leave' | 'rename-active';
+export type ShellCommand = 'fullscreen-enter' | 'fullscreen-leave' | 'rename-active' | { type: 'rename'; id: string };
 
 /** Fixed IPC push channel names for the shell preload (no generic channel access). */
 export const SHELL_CHANNELS = { state: 'shell:state', toast: 'shell:toast', command: 'shell:command' } as const;

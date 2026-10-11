@@ -23,7 +23,11 @@ export interface WindowRecord {
   rightPaneAccountId: string | null;
 }
 
-export interface Prefs { lastVersionSeen: string; }
+export interface Prefs {
+  lastVersionSeen: string;
+  /** Partition directory names (`wa-<id>`) whose deletion failed; retried at the next launch before any session opens. */
+  pendingPartitionRemovals: string[];
+}
 
 export interface AppState {
   schemaVersion: number;
@@ -33,7 +37,7 @@ export interface AppState {
 }
 
 const mainWindow = (): WindowRecord => ({ id: MAIN_WINDOW_ID, isMain: true, bounds: null, activeAccountId: null, splitRatio: DEFAULT_SPLIT_RATIO, rightPaneAccountId: null });
-const empty = (): AppState => ({ schemaVersion: APP_STATE_SCHEMA_VERSION, accounts: [], windows: [mainWindow()], prefs: { lastVersionSeen: '' } });
+const empty = (): AppState => ({ schemaVersion: APP_STATE_SCHEMA_VERSION, accounts: [], windows: [mainWindow()], prefs: { lastVersionSeen: '', pendingPartitionRemovals: [] } });
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
@@ -221,7 +225,12 @@ export class AppStateStore {
         if (w.activeAccountId && !accountIds.has(w.activeAccountId)) w.activeAccountId = null;
         if (w.rightPaneAccountId && !accountIds.has(w.rightPaneAccountId)) w.rightPaneAccountId = null;
       }
-      const prefs: Prefs = { lastVersionSeen: str(isRecord(parsed.prefs) ? parsed.prefs.lastVersionSeen : '') };
+      const prefsRaw = isRecord(parsed.prefs) ? parsed.prefs : {};
+      const pending = Array.isArray(prefsRaw.pendingPartitionRemovals) ? prefsRaw.pendingPartitionRemovals : [];
+      const prefs: Prefs = {
+        lastVersionSeen: str(prefsRaw.lastVersionSeen),
+        pendingPartitionRemovals: pending.filter((p): p is string => typeof p === 'string' && /^wa-[A-Za-z0-9-]{1,64}$/.test(p)),
+      };
       return { schemaVersion: APP_STATE_SCHEMA_VERSION, accounts, windows, prefs };
     } catch {
       try {

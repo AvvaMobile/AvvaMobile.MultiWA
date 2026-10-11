@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AccountView } from '../../../shared/state';
-import { isSamePage, mergeWindowOrder, nextActiveTab, stateForWindow } from '../shellWindows';
+import { boundsOnDisplay, isSamePage, mergeWindowOrder, nextActiveTab, stateForWindow } from '../shellWindows';
 
 const inSet = (...ids: string[]) => (id: string) => ids.includes(id);
 const views = (...ids: string[]) => ids.map((id) => ({ id })) as unknown as AccountView[];
@@ -49,5 +49,18 @@ describe('isSamePage (shell IPC sender check)', () => {
     expect(isSamePage('http://localhost:5173/shell/index.html', 'http://localhost:5173/shell/index.html')).toBe(true);
     expect(isSamePage('http://localhost:5174/shell/index.html', 'http://localhost:5173/shell/index.html')).toBe(false);
     expect(isSamePage('', shell)).toBe(false);
+  });
+});
+
+describe('boundsOnDisplay', () => {
+  const displays = [{ x: 0, y: 0, width: 1920, height: 1080 }, { x: 1920, y: 0, width: 1440, height: 900 }];
+  it('keeps bounds that overlap a display enough to grab', () => {
+    expect(boundsOnDisplay({ x: 100, y: 50, width: 1400, height: 900 }, displays)).toEqual({ x: 100, y: 50, width: 1400, height: 900 });
+    expect(boundsOnDisplay({ x: 2000, y: 10, width: 1200, height: 800 }, displays)).toEqual({ x: 2000, y: 10, width: 1200, height: 800 });
+  });
+  it('drops bounds that fall off every display (unplugged monitor)', () => {
+    expect(boundsOnDisplay({ x: 4000, y: 0, width: 1400, height: 900 }, displays)).toBeNull();
+    expect(boundsOnDisplay({ x: -1390, y: 0, width: 1400, height: 900 }, displays)).toBeNull();
+    expect(boundsOnDisplay(null, displays)).toBeNull();
   });
 });

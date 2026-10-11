@@ -113,3 +113,19 @@ describe('AppStateStore', () => {
     }
   });
 });
+
+describe('pending partition removals', () => {
+  it('are persisted in prefs so a failed delete is retried at the next launch', () => {
+    const file = tmpFile();
+    const s = new AppStateStore(file, 0);
+    s.setPrefs({ pendingPartitionRemovals: ['wa-a', 'wa-b'] });
+    const r = new AppStateStore(file, 0);
+    expect(r.prefs().pendingPartitionRemovals).toEqual(['wa-a', 'wa-b']);
+    expect(new AppStateStore(tmpFile(), 0).prefs().pendingPartitionRemovals).toEqual([]);
+  });
+  it('ignores junk entries when loading', () => {
+    const file = tmpFile();
+    writeFileSync(file, JSON.stringify({ schemaVersion: 1, accounts: [], windows: [], prefs: { lastVersionSeen: '', pendingPartitionRemovals: ['wa-x', 7, '../etc'] } }));
+    expect(new AppStateStore(file, 0).prefs().pendingPartitionRemovals).toEqual(['wa-x']);
+  });
+});

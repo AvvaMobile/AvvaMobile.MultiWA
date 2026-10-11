@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 class FakeWebContents extends EventEmitter {
   loadURL = vi.fn(() => Promise.resolve());
   focus = vi.fn();
-  close = vi.fn();
+  close = vi.fn(() => { setTimeout(() => { this.destroyed = true; this.emit('destroyed'); }, 50); });
   destroyed = false;
   isDestroyed = () => this.destroyed;
   isLoading = () => false;
@@ -64,9 +64,21 @@ describe('AccountRuntime', () => {
     wc.emit('focus');
     expect(deps.onAttention).toHaveBeenCalledWith('acc1');
   });
+  it('dispose resolves once the webContents reports destroyed', async () => {
+    const { rt, wc } = setup();
+    let done = false;
+    const p = rt.dispose().then(() => (done = true));
+    expect(wc.close).toHaveBeenCalled();
+    await Promise.resolve();
+    expect(done).toBe(false);
+    wc.destroyed = true;
+    wc.emit('destroyed');
+    await p;
+    expect(done).toBe(true);
+  });
   it('after dispose, events are ignored and the page is closed', () => {
     const { rt, wc, deps } = setup();
-    rt.dispose();
+    void rt.dispose();
     expect(wc.close).toHaveBeenCalled();
     deps.onChange.mockClear();
     wc.emit('page-title-updated', {}, '(9) WhatsApp');

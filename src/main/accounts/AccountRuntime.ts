@@ -3,6 +3,9 @@ import { WHATSAPP_HOME_URL } from '../security/origins';
 import { createAccountView, redactUrlsIn } from '../security/remoteContent';
 import { initialRuntimeState, reduceRuntime, type RuntimeEvent, type RuntimeState } from './runtimeState';
 
+/** Longest wait for Chromium to release a closed page's storage before the caller goes on (partition removal). */
+const DISPOSE_GRACE_MS = 3_000;
+
 export interface AccountRuntimeDeps {
   diag(line: string): void;
   /** Status or unread changed; the shell rebroadcasts state. */
@@ -79,11 +82,21 @@ export class AccountRuntime {
     setTimeout(() => (this.ownFocus = false), 500);
   }
 
-  dispose(): void {
-    if (this.disposed) return;
+  /** Stops listening and closes the page. Resolves once the webContents is destroyed (or after a short grace period). */
+  dispose(): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     this.disposed = true;
-    this.view.webContents.removeAllListeners();
-    if (!this.view.webContents.isDestroyed()) this.view.webContents.close();
+    const wc = this.view.webContents;
+    wc.removeAllListeners();
+    if (wc.isDestroyed()) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, DISPOSE_GRACE_MS);
+      wc.once('destroyed', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      wc.close();
+    });
   }
 
   private dispatch(event: RuntimeEvent): void {

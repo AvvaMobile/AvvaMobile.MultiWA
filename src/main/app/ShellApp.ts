@@ -1,7 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions, type Rectangle } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, screen, session, shell, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions, type Rectangle } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { randomUUID } from 'node:crypto';
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { colorForNew, nextAccountName, validateAccountName, type AccountRecord } from '../../domain/accounts/account';
@@ -14,7 +14,7 @@ import { DownloadManager } from '../downloads/DownloadManager';
 import { PaneLayoutController } from '../layout/PaneLayoutController';
 import { partitionFor } from '../security/origins';
 import { AppStateStore, MAIN_WINDOW_ID, type WindowRecord } from './AppStateStore';
-import { isSamePage, mergeWindowOrder, nextActiveTab, stateForWindow } from './shellWindows';
+import { boundsOnDisplay, isSamePage, mergeWindowOrder, nextActiveTab, stateForWindow } from './shellWindows';
 import { UpdateService } from './updater';
 
 /** One shell window: its BrowserWindow, its persisted record id and its pane layout. */
@@ -58,6 +58,12 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     for (const sw of windows.values()) if (f && sw.win === f) return sw;
     return mainWindow();
   };
+  /** For menu actions: the focused window, or the main window shown first (on macOS it may be hidden behind the Dock). */
+  const visibleWindow = (): ShellWindow => {
+    const sw = focusedWindow();
+    if (!sw.win.isDestroyed() && !sw.win.isVisible()) sw.win.show();
+    return sw;
+  };
   const tabsIn = (sw: ShellWindow) => store.accounts().filter((a) => windowOf.get(a.id) === sw).map((a) => a.id);
   const sendCommand = (sw: ShellWindow, c: ShellCommand) => {
     if (!sw.win.isDestroyed()) sw.win.webContents.send(SHELL_CHANNELS.command, c);
@@ -79,7 +85,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
   }
 
   function createShellWindow(record: WindowRecord): ShellWindow {
-    const bounds: Partial<Rectangle> = record.bounds ?? {};
+    const bounds: Partial<Rectangle> = boundsOnDisplay(record.bounds, screen.getAllDisplays().map((d) => d.workArea)) ?? {};
     const win = new BrowserWindow({
       width: 1400,
       height: 900,
@@ -211,7 +217,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
   const downloads = new DownloadManager({
     downloadsDir: () => app.getPath('downloads'),
     onEvent: (e) => {
-      diag(`[${e.accountId.slice(0, 8)}] download ${e.kind} ${e.filename}`);
+      diag(`[${e.accountId.slice(0, 8)}] download ${e.kind}${e.kind === 'failed' ? ` ${e.state}` : ''}`);
       if (e.kind === 'done') {
         sendToast({ accountId: e.accountId, kind: 'success', title: `Saved ${e.filename}`, body: 'Click to show in folder', downloadId: e.id });
         const owner = windowOf.get(e.accountId);
@@ -227,9 +233,11 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
   // ---------- Account runtimes ----------
 
   const lastStatus = new Map<string, AccountView['status']>();
-  // Notification-click routing, fallback branch (docs/M0-FEASIBILITY.md Q3 could not be observed): when a window is
-  // activated within a short window after an account's unread count rose, that account is brought to the front.
-  // The primary branch (the page's own focus request → onAttention → bringToFront) stays in place as well.
+  // Notification-click routing, fallback branch (docs/M0-FEASIBILITY.md Q3 could not be observed): an unread
+  // increase that arrives while no MultiWA window is focused is remembered; if a window is activated within a short
+  // window after it, that account is brought to the front. Increases while the user is working in MultiWA are
+  // ignored, so clicking between windows never switches tabs. The primary branch (the page's own focus request →
+  // onAttention → bringToFront) stays in place as well.
   const ATTENTION_WINDOW_MS = 2_000;
   const lastUnread = new Map<string, number>();
   let recentIncrease: { id: string; at: number } | null = null;
@@ -247,7 +255,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
         const r = runtimes.get(id);
         if (!r) return;
         const { status, error, unread } = r.snapshot();
-        if (unread > (lastUnread.get(id) ?? 0)) recentIncrease = { id, at: Date.now() };
+        if (unread > (lastUnread.get(id) ?? 0) && BrowserWindow.getFocusedWindow() === null) recentIncrease = { id, at: Date.now() };
         lastUnread.set(id, unread);
         owner?.layout.setHidden(id, status === 'offline');
         const wentOffline = status === 'offline' && lastStatus.get(id) !== 'offline';
@@ -268,7 +276,8 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     return rt;
   }
 
-  function destroyRuntime(id: string): void {
+  /** Detaches and disposes the runtime; resolves once its page is gone. */
+  function destroyRuntime(id: string): Promise<void> {
     const rt = runtimes.get(id);
     const sw = windowOf.get(id);
     runtimes.delete(id);
@@ -276,10 +285,9 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     lastStatus.delete(id);
     lastUnread.delete(id);
     sw?.layout.unregister(id);
-    if (rt) {
-      if (sw && !sw.win.isDestroyed()) sw.win.contentView.removeChildView(rt.view);
-      rt.dispose();
-    }
+    if (!rt) return Promise.resolve();
+    if (sw && !sw.win.isDestroyed()) sw.win.contentView.removeChildView(rt.view);
+    return rt.dispose();
   }
 
   function selectAccount(id: string): void {
@@ -310,13 +318,31 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     return record.id;
   }
 
-  /** Removes the account, its view and its whole session partition. */
+  /** Deletes a partition directory; a failure (file still held open, antivirus) is remembered and retried at the next launch. */
+  function removePartitionDir(dirName: string): boolean {
+    const dir = join(userData, 'Partitions', dirName);
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch (err) {
+      diag(`partition ${dirName} delete failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    const gone = !existsSync(dir);
+    const pending = store.prefs().pendingPartitionRemovals;
+    if (gone && pending.includes(dirName)) store.setPrefs({ pendingPartitionRemovals: pending.filter((p) => p !== dirName) });
+    if (!gone && !pending.includes(dirName)) store.setPrefs({ pendingPartitionRemovals: [...pending, dirName] });
+    return gone;
+  }
+
+  /** Removes the account, its view and its whole session partition. Never throws: the IPC caller already saw the tab go. */
   async function removeAccount(id: string): Promise<void> {
     const sw = windowOf.get(id);
-    const ses = runtimes.get(id)?.view.webContents.session ?? session.fromPartition(partitionFor(id));
-    destroyRuntime(id);
+    const rt = runtimes.get(id);
+    const ses = rt?.view.webContents.session ?? session.fromPartition(partitionFor(id));
+    const disposed = destroyRuntime(id);
     store.removeAccount(id);
     afterTabsChanged(sw ?? mainWindow());
+    // Let Chromium close the page and release its storage files before clearing and deleting them.
+    await disposed;
     try {
       await ses.clearStorageData();
       await ses.clearCache();
@@ -324,8 +350,8 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
       diag(`[${id.slice(0, 8)}] clearStorageData failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     // Electron keeps a `persist:` partition under <userData>/Partitions/<name>; remove what clearStorageData left.
-    rmSync(join(userData, 'Partitions', `wa-${id}`), { recursive: true, force: true });
-    diag(`[${id.slice(0, 8)}] account removed`);
+    const gone = removePartitionDir(`wa-${id}`);
+    diag(`[${id.slice(0, 8)}] account removed${gone ? '' : ' (partition delete pending)'}`);
   }
 
   function confirmRemove(sw: ShellWindow, id: string): boolean {
@@ -495,7 +521,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
 
   const selectAndRename = (sw: ShellWindow, id: string) => {
     selectAccount(id);
-    sendCommand(windowOf.get(id) ?? sw, 'rename-active');
+    sendCommand(windowOf.get(id) ?? sw, { type: 'rename', id });
   };
 
   // ---------- Menu ----------
@@ -525,7 +551,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     updater: autoUpdater,
     enabled: app.isPackaged && !process.env.MULTIWA_NO_UPDATES,
     currentVersion: app.getVersion(),
-    showMessage: async (options) => (await dialog.showMessageBox(focusedWindow().win, options)).response,
+    showMessage: async (options) => (await dialog.showMessageBox(visibleWindow().win, options)).response,
     log: (event, data) => diag(`${event}${typeof data?.version === 'string' ? ` ${data.version}` : ''}`),
   });
   const updatesItem: MenuItemConstructorOptions = { label: 'Check for Updates…', click: () => void updates.check() };
@@ -535,12 +561,12 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
       {
         label: 'File',
         submenu: [
-          { label: 'New Account', accelerator: 'CmdOrCtrl+T', click: () => addAccount(focusedWindow()) },
+          { label: 'New Account', accelerator: 'CmdOrCtrl+T', click: () => addAccount(visibleWindow()) },
           {
             label: 'New Window',
             accelerator: 'CmdOrCtrl+N',
             click: () => {
-              const sw = focusedWindow();
+              const sw = visibleWindow();
               const id = addAccount(sw);
               if (tabsIn(sw).length > 1) moveTabToNewWindow(id);
             },
@@ -549,7 +575,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
           {
             label: 'Rename Account…',
             click: () => {
-              const sw = focusedWindow();
+              const sw = visibleWindow();
               if (sw.layout.activeId) selectAndRename(sw, sw.layout.activeId);
             },
           },
@@ -557,13 +583,13 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
             label: 'Remove Account…',
             accelerator: 'CmdOrCtrl+W',
             click: () => {
-              const sw = focusedWindow();
+              const sw = visibleWindow();
               const id = sw.layout.activeId;
               if (id && confirmRemove(sw, id) && known(id)) void removeAccount(id);
             },
           },
           { type: 'separator' },
-          { role: 'close', label: 'Close Window' },
+          { role: 'close', label: 'Close Window', accelerator: 'Shift+CmdOrCtrl+W' },
           ...(isMac ? [] : [{ type: 'separator' } as const, { role: 'about' } as const, { role: 'quit' } as const]),
         ],
       },
@@ -629,7 +655,7 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
     store.flush();
     // Persist every account's login even if the process is terminated soon after quitting.
     for (const rt of runtimes.values()) void rt.view.webContents.session.cookies.flushStore();
-    for (const rt of runtimes.values()) rt.dispose();
+    for (const rt of runtimes.values()) void rt.dispose();
   });
   app.on('window-all-closed', () => {
     if (!isMac) app.quit();
@@ -644,6 +670,10 @@ export async function startShell(): Promise<{ focusMainWindow: () => void }> {
   });
 
   // ---------- Startup ----------
+
+  for (const dirName of store.prefs().pendingPartitionRemovals) {
+    if (removePartitionDir(dirName)) diag(`partition ${dirName} deleted (retry)`);
+  }
 
   const first = createShellWindow(store.mainWindowRecord());
   await loadShellRenderer(first);

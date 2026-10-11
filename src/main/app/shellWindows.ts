@@ -41,3 +41,19 @@ export function isSamePage(url: string, expected: string): boolean {
   const k = pageKey(url);
   return k !== null && k === pageKey(expected);
 }
+
+export interface Bounds { x: number; y: number; width: number; height: number; }
+
+/** Minimum visible width/height of a restored window on some display, so its title bar can still be grabbed. */
+const MIN_VISIBLE = 100;
+
+/** `bounds` when at least MIN_VISIBLE px of it lie on one of `displays` (work areas), else null (use defaults). */
+export function boundsOnDisplay(bounds: Bounds | null | undefined, displays: readonly Bounds[]): Bounds | null {
+  if (!bounds) return null;
+  const visible = displays.some((d) => {
+    const w = Math.min(bounds.x + bounds.width, d.x + d.width) - Math.max(bounds.x, d.x);
+    const h = Math.min(bounds.y + bounds.height, d.y + d.height) - Math.max(bounds.y, d.y);
+    return w >= MIN_VISIBLE && h >= MIN_VISIBLE;
+  });
+  return visible ? bounds : null;
+}

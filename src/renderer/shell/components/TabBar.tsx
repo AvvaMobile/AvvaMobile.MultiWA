@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AccountView } from '../../../shared/state';
 
 interface Props {
@@ -18,6 +18,8 @@ interface Props {
   onRenameStart(id: string): void;
   onRename(id: string, name: string): void;
   onRenameEnd(): void;
+  /** Drawn at the right end of the strip (toasts). The strip is the only shell area a native account view never covers. */
+  trailing?: ReactNode;
 }
 
 /** Pointer travel before a press becomes a drag (a shorter press is a click). */
@@ -82,7 +84,7 @@ function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommi
  * Browser-style account tab strip (Sidekick's tab bar). Tabs are reordered by dragging: the other tabs slide
  * out of the way, the dragged tab settles on release. Double-click renames in place.
  */
-export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu, onNew, onClose, renamingId, onRenameStart, onRename, onRenameEnd }: Props) {
+export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu, onNew, onClose, renamingId, onRenameStart, onRename, onRenameEnd, trailing }: Props) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const update = (d: Drag | null) => {
@@ -192,6 +194,7 @@ export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu,
           </button>
         </div>
       </nav>
+      {trailing}
     </header>
   );
 }

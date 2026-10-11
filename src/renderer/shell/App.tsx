@@ -50,6 +50,7 @@ export function App({ api }: { api: MultiWAApi }) {
         if (c === 'fullscreen-enter') setFullscreen(true);
         if (c === 'fullscreen-leave') setFullscreen(false);
         if (c === 'rename-active') setRenamingId((cur) => cur ?? activeIdRef.current);
+        if (typeof c === 'object' && c.type === 'rename') setRenamingId(c.id);
       }),
     ];
     void api.getState().then((s) => {
@@ -131,6 +132,16 @@ export function App({ api }: { api: MultiWAApi }) {
           });
         }}
         onRenameEnd={() => setRenamingId(null)}
+        trailing={
+          <Toasts
+            toasts={toasts}
+            onClick={(t) => {
+              if (t.downloadId) void api.revealDownload(t.downloadId);
+              else if (t.accountId) void api.selectAccount(t.accountId);
+              setToasts((ts) => ts.filter((x) => x.id !== t.id));
+            }}
+          />
+        }
       />
 
       {active ? (
@@ -157,14 +168,6 @@ export function App({ api }: { api: MultiWAApi }) {
         </>
       )}
 
-      <Toasts
-        toasts={toasts}
-        onClick={(t) => {
-          if (t.downloadId) void api.revealDownload(t.downloadId);
-          else if (t.accountId) void api.selectAccount(t.accountId);
-          setToasts((ts) => ts.filter((x) => x.id !== t.id));
-        }}
-      />
     </div>
   );
 }

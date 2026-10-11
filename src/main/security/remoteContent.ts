@@ -36,7 +36,8 @@ export interface PermissionLogEntry {
 
 export interface NavigationLogEntry {
   at: string;
-  kind: 'navigate-allowed' | 'navigate-blocked' | 'popup-external' | 'popup-blocked';
+  kind: 'navigate-allowed' | 'navigate-blocked' | 'popup-external' | 'popup-blocked' | 'external-dropped';
+  /** Origin only. */
   url: string;
 }
 
@@ -97,17 +98,35 @@ export function configureAccountSession(ses: Session, hooks: RemoteHooks): Sessi
 }
 
 const EXTERNAL_OPEN_INTERVAL_MS = 2_000;
+const EXTERNAL_OPEN_BURST = 5;
 
-/** Wraps `fn` so it runs at most once per `intervalMs`; calls in between are dropped (a page must not spam the OS browser). */
-export function rateLimited<A extends unknown[]>(fn: (...args: A) => void, intervalMs = EXTERNAL_OPEN_INTERVAL_MS, now: () => number = Date.now): (...args: A) => boolean {
-  let last = -Infinity;
+/**
+ * Wraps `fn` so it runs at most `burst` times per `intervalMs` window; further calls in that window are dropped
+ * (a page must not spam the OS browser, but a user clicking two links in a row must not lose the second).
+ */
+export function rateLimited<A extends unknown[]>(fn: (...args: A) => void, intervalMs = EXTERNAL_OPEN_INTERVAL_MS, now: () => number = Date.now, burst = EXTERNAL_OPEN_BURST): (...args: A) => boolean {
+  let windowStart = -Infinity;
+  let used = 0;
   return (...args: A) => {
     const t = now();
-    if (t - last < intervalMs) return false;
-    last = t;
+    if (t - windowStart >= intervalMs) {
+      windowStart = t;
+      used = 0;
+    }
+    if (used >= burst) return false;
+    used++;
     fn(...args);
     return true;
   };
+}
+
+/** Origin only, for the diagnostics log: paths carry phone numbers (wa.me/<n>) and invite codes (chat.whatsapp.com/<code>). */
+export function originOf(raw: string): string {
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return '<invalid>';
+  }
 }
 
 /** Strip query/fragment (they can carry invite codes) before logging. */
@@ -129,16 +148,17 @@ export function redactUrlsIn(text: string): string {
  * Navigation and window-open policy for an account webContents:
  * - top-level navigation outside whatsapp.com / whatsapp.net is blocked and handed to the OS browser;
  * - every window.open is denied in-app; safe http(s) targets open in the OS browser.
+ * The log receives origins only (never paths or queries).
  */
-function applyNavigationPolicy(wc: WebContents, onLog?: (e: NavigationLogEntry) => void): void {
-  const log = (kind: NavigationLogEntry['kind'], url: string) => onLog?.({ at: new Date().toISOString(), kind, url: redactUrl(url) });
+export function applyNavigationPolicy(wc: WebContents, onLog?: (e: NavigationLogEntry) => void): void {
+  const log = (kind: NavigationLogEntry['kind'], url: string) => onLog?.({ at: new Date().toISOString(), kind, url: originOf(url) });
   const openExternal = rateLimited((url: string) => void shell.openExternal(url));
 
   const guard = (event: { preventDefault(): void }, url: string) => {
     if (isAllowedTopLevelUrl(url)) return log('navigate-allowed', url);
     event.preventDefault();
     log('navigate-blocked', url);
-    if (isSafeExternalUrl(url)) openExternal(url);
+    if (isSafeExternalUrl(url) && !openExternal(url)) log('external-dropped', url);
   };
   wc.on('will-navigate', (event) => guard(event, event.url));
   wc.on('will-redirect', (event) => {
@@ -148,7 +168,7 @@ function applyNavigationPolicy(wc: WebContents, onLog?: (e: NavigationLogEntry) 
   wc.setWindowOpenHandler(({ url }) => {
     if (isSafeExternalUrl(url)) {
       log('popup-external', url);
-      openExternal(url);
+      if (!openExternal(url)) log('external-dropped', url);
     } else log('popup-blocked', url);
     return { action: 'deny' };
   });
