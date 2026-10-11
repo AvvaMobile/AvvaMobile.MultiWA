@@ -38,6 +38,7 @@ export class AccountRuntime {
     const wc = this.view.webContents;
     wc.on('did-start-loading', () => this.dispatch({ type: 'load-start' }));
     wc.on('did-finish-load', () => this.dispatch({ type: 'load-finish' }));
+    wc.on('did-stop-loading', () => this.dispatch({ type: 'load-stop' }));
     wc.on('did-fail-load', (_e, code, description, _url, isMainFrame) => {
       if (isMainFrame) this.dispatch({ type: 'load-fail', code, description });
     });

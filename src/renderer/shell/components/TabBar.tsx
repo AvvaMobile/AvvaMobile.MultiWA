@@ -20,6 +20,9 @@ interface Props {
   onRenameEnd(): void;
   /** Drawn at the right end of the strip (toasts). The strip is the only shell area a native account view never covers. */
   trailing?: ReactNode;
+  /** Split view toggle at the far right: opens another account beside the active one, or hides the right pane. */
+  splitOpen: boolean;
+  onToggleSplit(): void;
 }
 
 /** Pointer travel before a press becomes a drag (a shorter press is a click). */
@@ -84,7 +87,7 @@ function RenameInput({ initial, onCommit, onCancel }: { initial: string; onCommi
  * Browser-style account tab strip (Sidekick's tab bar). Tabs are reordered by dragging: the other tabs slide
  * out of the way, the dragged tab settles on release. Double-click renames in place.
  */
-export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu, onNew, onClose, renamingId, onRenameStart, onRename, onRenameEnd, trailing }: Props) {
+export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu, onNew, onClose, renamingId, onRenameStart, onRename, onRenameEnd, trailing, splitOpen, onToggleSplit }: Props) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const update = (d: Drag | null) => {
@@ -195,6 +198,19 @@ export function TabBar({ accounts, activeId, onSelect, onReorder, onContextMenu,
         </div>
       </nav>
       {trailing}
+      <button
+        className="tab-split"
+        title={`${splitOpen ? 'Hide Right Pane' : 'Split View'} (${isMac ? '⌘\\' : 'Ctrl+\\'})`}
+        aria-label={splitOpen ? 'Hide Right Pane' : 'Split View'}
+        aria-pressed={splitOpen}
+        disabled={!splitOpen && accounts.length < 2}
+        onClick={onToggleSplit}
+      >
+        <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true">
+          <rect x="0.75" y="0.75" width="14.5" height="12.5" rx="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          <path d="M8 1v12" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
     </header>
   );
 }

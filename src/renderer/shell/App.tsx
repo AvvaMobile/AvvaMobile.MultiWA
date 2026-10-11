@@ -125,6 +125,12 @@ export function App({ api }: { api: MultiWAApi }) {
         }}
         onContextMenu={(id) => void api.accountContextMenu(id)}
         onNew={() => void api.addAccount()}
+        splitOpen={state.rightPaneAccountId !== null}
+        onToggleSplit={() => {
+          if (state.rightPaneAccountId !== null) return void api.hideRightPane();
+          const other = state.accounts.find((a) => a.id !== state.activeAccountId);
+          if (other) void api.showInRightPane(other.id);
+        }}
         onClose={(id) => void api.removeAccount(id)}
         renamingId={renamingId}
         onRenameStart={(id) => {

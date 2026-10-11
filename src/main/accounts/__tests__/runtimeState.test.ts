@@ -17,6 +17,10 @@ describe('reduceRuntime', () => {
     const { s } = run([{ type: 'load-start' }, { type: 'load-finish' }]);
     expect(s).toMatchObject({ status: 'ready', error: null });
   });
+  it('a sub-frame load (load-start without load-finish) ends on load-stop as ready; load-stop never clears offline', () => {
+    expect(run([{ type: 'load-start' }, { type: 'load-finish' }, { type: 'load-start' }, { type: 'load-stop' }]).s.status).toBe('ready');
+    expect(run([{ type: 'load-start' }, { type: 'load-fail', code: -106, description: 'x' }, { type: 'load-stop' }]).s.status).toBe('offline');
+  });
   it('a main-frame load failure is offline with the description; aborted loads (-3) are ignored', () => {
     expect(run([{ type: 'load-start' }, { type: 'load-fail', code: -106, description: 'ERR_INTERNET_DISCONNECTED' }]).s).toMatchObject({ status: 'offline', error: 'ERR_INTERNET_DISCONNECTED' });
     expect(run([{ type: 'load-start' }, { type: 'load-fail', code: -3, description: 'ERR_ABORTED' }]).s.status).toBe('loading');

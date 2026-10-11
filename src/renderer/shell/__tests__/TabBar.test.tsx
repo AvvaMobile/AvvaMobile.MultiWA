@@ -15,7 +15,7 @@ function render(props: Partial<Parameters<typeof TabBar>[0]> = {}) {
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
-  const p = { accounts: [acc('a', { unread: 3 }), acc('b', { status: 'offline', error: 'x' })], activeId: 'a', onSelect: vi.fn(), onReorder: vi.fn(), onContextMenu: vi.fn(), onNew: vi.fn(), onClose: vi.fn(), onRename: vi.fn(), renamingId: null, onRenameStart: vi.fn(), onRenameEnd: vi.fn(), ...props };
+  const p = { accounts: [acc('a', { unread: 3 }), acc('b', { status: 'offline', error: 'x' })], activeId: 'a', onSelect: vi.fn(), onReorder: vi.fn(), onContextMenu: vi.fn(), onNew: vi.fn(), onClose: vi.fn(), onRename: vi.fn(), renamingId: null, onRenameStart: vi.fn(), onRenameEnd: vi.fn(), splitOpen: false, onToggleSplit: vi.fn(), ...props };
   act(() => root!.render(<TabBar {...p} />));
   return p;
 }
@@ -46,6 +46,17 @@ describe('TabBar', () => {
     expect(p.onRename).toHaveBeenCalledWith('a', 'Work');
     act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     expect(p.onRenameEnd).toHaveBeenCalled();
+  });
+  it('the split button at the right end toggles the right pane and needs two accounts', () => {
+    const p = render({ splitOpen: false, onToggleSplit: vi.fn() });
+    const btn = host.querySelector<HTMLButtonElement>('.topbar > .tab-split')!;
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    act(() => btn.click());
+    expect(p.onToggleSplit).toHaveBeenCalledTimes(1);
+    act(() => root!.render(<TabBar {...p} splitOpen={true} />));
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    act(() => root!.render(<TabBar {...p} accounts={[acc('a')]} splitOpen={false} />));
+    expect(host.querySelector<HTMLButtonElement>('.tab-split')!.disabled).toBe(true);
   });
   it('the close button asks to close only its tab', () => {
     const p = render();

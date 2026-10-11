@@ -17,6 +17,7 @@ export type RuntimeEvent =
   | { type: 'load-fail'; code: number; description: string }
   | { type: 'crash'; reason: string }
   | { type: 'title'; title: string }
+  | { type: 'load-stop' }
   | { type: 'reload' };
 
 export const initialRuntimeState = (): RuntimeState => ({ status: 'loading', error: null, unread: 0, lastCrashAt: null });
@@ -28,6 +29,10 @@ export function reduceRuntime(state: RuntimeState, event: RuntimeEvent, now: num
       return { state: { ...state, status: state.status === 'offline' ? 'offline' : 'loading' }, action: null };
     case 'load-finish':
       return { state: { ...state, status: 'ready', error: null }, action: null };
+    case 'load-stop':
+      // did-stop-loading follows every load-start, including sub-frame loads that never report did-finish-load
+      // (and failed loads, so it must not clear offline).
+      return { state: { ...state, status: state.status === 'loading' ? 'ready' : state.status }, action: null };
     case 'load-fail':
       // -3 = ERR_ABORTED: a navigation replaced by another one, not a failure.
       if (event.code === -3) return { state, action: null };

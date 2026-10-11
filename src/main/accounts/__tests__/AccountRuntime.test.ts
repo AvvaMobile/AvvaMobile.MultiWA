@@ -41,6 +41,16 @@ describe('AccountRuntime', () => {
     expect(rt.snapshot()).toEqual({ status: 'ready', error: null, unread: 2 });
     expect(deps.onChange).toHaveBeenCalledWith('acc1');
   });
+  it('a sub-frame load that only reports did-stop-loading leaves the account ready, not stuck loading', () => {
+    const { rt, wc } = setup();
+    rt.load();
+    wc.emit('did-start-loading');
+    wc.emit('did-finish-load');
+    wc.emit('did-start-loading'); // iframe inside WhatsApp Web: no did-finish-load follows
+    expect(rt.snapshot().status).toBe('loading');
+    wc.emit('did-stop-loading');
+    expect(rt.snapshot().status).toBe('ready');
+  });
   it('a main-frame load failure goes offline; subframe failures are ignored', () => {
     const { rt, wc } = setup();
     wc.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://x', false);

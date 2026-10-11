@@ -62,6 +62,14 @@ describe('App', () => {
     expect(api.focusShell).toHaveBeenCalledTimes(1);
     expect(tab.querySelector('.tab-rename')).not.toBeNull();
   });
+  it('the split button shows the first other account in the right pane, and hides the pane when one is open', async () => {
+    const { api, listeners } = await render();
+    act(() => host.querySelector<HTMLButtonElement>('.tab-split')!.click());
+    expect(api.showInRightPane).toHaveBeenCalledWith('b');
+    act(() => listeners.state[0]!({ ...state, rightPaneAccountId: 'b' }));
+    act(() => host.querySelector<HTMLButtonElement>('.tab-split')!.click());
+    expect(api.hideRightPane).toHaveBeenCalledTimes(1);
+  });
   it('a rename command carrying an account id opens the rename input on that tab, not the active one', async () => {
     const { listeners } = await render();
     act(() => listeners.command[0]!({ type: 'rename', id: 'b' }));

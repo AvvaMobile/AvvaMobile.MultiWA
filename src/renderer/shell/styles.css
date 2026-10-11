@@ -32,7 +32,7 @@ button { font: inherit; color: inherit; }
 .shell.fullscreen .topbar { padding-left: 8px; }
 html.platform-win32 .topbar { padding: 0 140px 0 8px; }
 html.platform-win32 .shell.fullscreen .topbar { padding-right: 10px; }
-.tab, .tab-add { -webkit-app-region: no-drag; }
+.tab, .tab-add, .tab-split { -webkit-app-region: no-drag; }
 .tabs { flex: 1; min-width: 0; align-self: stretch; display: flex; }
 .tab-list { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; overflow-y: hidden; padding: 6px 2px 1px; margin-bottom: -1px; scrollbar-width: none; }
 .tab-list::-webkit-scrollbar { display: none; }
@@ -59,6 +59,10 @@ html.platform-win32 .shell.fullscreen .topbar { padding-right: 10px; }
 @media (prefers-reduced-motion: reduce) { .tab-list.reordering .tab { transition: none !important; } }
 .tab-add { flex: none; align-self: center; margin-bottom: 4px; width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent; color: var(--chrome-muted); font-size: 20px; line-height: 1; cursor: pointer; }
 .tab-add:hover { background: #dcdcdf; color: var(--chrome-text); }
+.tab-split { flex: none; align-self: center; margin-left: auto; margin-bottom: 4px; width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent; color: var(--chrome-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.tab-split:hover:not(:disabled) { background: #dcdcdf; color: var(--chrome-text); }
+.tab-split[aria-pressed='true'] { background: #dcdcdf; color: var(--accent); }
+.tab-split:disabled { opacity: .35; cursor: default; }
 
 /* Panes */
 .pane-placeholder { position: absolute; display: grid; place-items: center; color: var(--muted); background: var(--bg); text-align: center; }
