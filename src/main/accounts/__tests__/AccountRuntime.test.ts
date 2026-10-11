@@ -36,7 +36,7 @@ describe('AccountRuntime', () => {
     const { rt, wc, deps } = setup();
     rt.load();
     expect(wc.loadURL).toHaveBeenCalledWith('https://web.whatsapp.com/');
-    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
+    wc.emit('did-start-navigation', { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     wc.emit('did-finish-load');
     wc.emit('page-title-updated', {}, '(2) WhatsApp');
     expect(rt.snapshot()).toEqual({ status: 'ready', error: null, unread: 2 });
@@ -45,13 +45,13 @@ describe('AccountRuntime', () => {
   it('sub-frame loads and in-page navigations never put a ready account back into loading', () => {
     const { rt, wc } = setup();
     rt.load();
-    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
+    wc.emit('did-start-navigation', { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     wc.emit('did-finish-load');
     wc.emit('did-start-loading'); // an iframe inside WhatsApp Web (may never report did-finish-load / did-stop-loading)
-    wc.emit('did-start-navigation', {}, { url: 'https://x.whatsapp.net/', isMainFrame: false, isSameDocument: false });
-    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/#chat', isMainFrame: true, isSameDocument: true });
+    wc.emit('did-start-navigation', { url: 'https://x.whatsapp.net/', isMainFrame: false, isSameDocument: false });
+    wc.emit('did-start-navigation', { url: 'https://web.whatsapp.com/#chat', isMainFrame: true, isSameDocument: true });
     expect(rt.snapshot().status).toBe('ready');
-    wc.emit('did-start-navigation', {}, { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
+    wc.emit('did-start-navigation', { url: 'https://web.whatsapp.com/', isMainFrame: true, isSameDocument: false });
     expect(rt.snapshot().status).toBe('loading');
     wc.emit('did-stop-loading');
     expect(rt.snapshot().status).toBe('ready');

@@ -39,8 +39,8 @@ export class AccountRuntime {
     const wc = this.view.webContents;
     // Only a real main-frame navigation is a load. did-start-loading also fires for iframes inside WhatsApp Web,
     // which may never finish, and would pin the tab in the loading state.
-    wc.on('did-start-navigation', (_e, details) => {
-      if (details.isMainFrame && !details.isSameDocument) this.dispatch({ type: 'load-start' });
+    wc.on('did-start-navigation', (e) => {
+      if (e.isMainFrame && !e.isSameDocument) this.dispatch({ type: 'load-start' });
     });
     wc.on('did-finish-load', () => this.dispatch({ type: 'load-finish' }));
     wc.on('did-stop-loading', () => this.dispatch({ type: 'load-stop' }));
