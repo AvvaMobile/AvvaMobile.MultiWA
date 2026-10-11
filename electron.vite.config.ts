@@ -18,6 +18,8 @@ export default defineConfig({
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
     esbuild: { jsx: 'automatic' },
+    // Pre-bundle React up front: a lazy mid-session re-optimization leaves two React copies ("Invalid hook call").
+    optimizeDeps: { include: ['react', 'react-dom/client', 'react/jsx-runtime'] },
     build: { rollupOptions: { input: { shell: resolve(__dirname, 'src/renderer/shell/index.html') } } },
   },
 });
