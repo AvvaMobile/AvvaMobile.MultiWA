@@ -1,0 +1,59 @@
+# Packaging and release. Local only: `npm run dist:mac` / `npm run dist:win`; see docs/RELEASING.md. No CI.
+appId: com.avvamobile.multiwa
+productName: MultiWA
+copyright: Copyright © 2026 Avva Mobile
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+npmRebuild: false
+# Electron fuses: the packaged app cannot be turned into a Node runtime or debugger target, and only runs its own
+# integrity-checked app.asar. Cookie encryption stays off (keychain prompts; existing WhatsApp logins would be lost).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: true
+  resetAdHocDarwinSignature: true
+publish:
+  provider: github
+  owner: AvvaMobile
+  repo: MultiWA
+  releaseType: draft
+
+mac:
+  category: public.app-category.social-networking
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip # electron-updater installs from the zip
+      arch: [arm64, x64]
+  # No spaces: the zip and its .blockmap must keep matching names on GitHub (differential updates).
+  artifactName: MultiWA-${version}-${arch}-mac.${ext}
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: MultiWA uses the microphone for WhatsApp voice messages and calls.
+    NSCameraUsageDescription: MultiWA uses the camera for WhatsApp video calls.
+dmg:
+  artifactName: MultiWA-${version}-${arch}.${ext}
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: MultiWA-Setup-${version}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  shortcutName: MultiWA
+  uninstallDisplayName: MultiWA
