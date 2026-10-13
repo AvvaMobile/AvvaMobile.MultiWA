@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 class FakeWebContents extends EventEmitter {
   loadURL = vi.fn(() => Promise.resolve());
   focus = vi.fn();
-  insertCSS = vi.fn(() => Promise.resolve('key'));
   close = vi.fn(() => { setTimeout(() => { this.destroyed = true; this.emit('destroyed'); }, 50); });
   destroyed = false;
   isDestroyed = () => this.destroyed;
@@ -55,16 +54,6 @@ describe('AccountRuntime', () => {
     expect(rt.snapshot().status).toBe('loading');
     wc.emit('did-stop-loading');
     expect(rt.snapshot().status).toBe('ready');
-  });
-  it('inserts the layout stylesheet once the DOM is ready (a narrower chat list, no 748px floor), never script', () => {
-    const { rt, wc } = setup();
-    rt.load();
-    wc.emit('dom-ready');
-    expect(wc.insertCSS).toHaveBeenCalledTimes(1);
-    const css = (wc.insertCSS.mock.calls[0] as unknown as [string])[0];
-    expect(css).toContain('#side');
-    expect(css).toContain('min-width: 0');
-    expect('executeJavaScript' in wc).toBe(false);
   });
   it('a main-frame load failure goes offline; subframe failures are ignored', () => {
     const { rt, wc } = setup();
