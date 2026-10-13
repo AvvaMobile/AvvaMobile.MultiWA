@@ -2,7 +2,6 @@ import type { WebContentsView } from 'electron';
 import { WHATSAPP_HOME_URL } from '../security/origins';
 import { createAccountView, redactUrlsIn } from '../security/remoteContent';
 import { initialRuntimeState, reduceRuntime, type RuntimeEvent, type RuntimeState } from './runtimeState';
-import { WHATSAPP_LAYOUT_CSS } from './whatsappLayoutCss';
 
 /** Longest wait for Chromium to release a closed page's storage before the caller goes on (partition removal). */
 const DISPOSE_GRACE_MS = 3_000;
@@ -44,7 +43,6 @@ export class AccountRuntime {
     });
     wc.on('did-finish-load', () => this.dispatch({ type: 'load-finish' }));
     wc.on('did-stop-loading', () => this.dispatch({ type: 'load-stop' }));
-    wc.on('dom-ready', () => void wc.insertCSS(WHATSAPP_LAYOUT_CSS).catch(() => undefined));
     wc.on('did-fail-load', (_e, code, description, _url, isMainFrame) => {
       if (isMainFrame) this.dispatch({ type: 'load-fail', code, description });
     });
